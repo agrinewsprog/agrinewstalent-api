@@ -1,4 +1,4 @@
-import { User, UserRole } from '@prisma/client';
+import { User, Role } from '@prisma/client';
 import { AuthRepository } from './auth.repository';
 import {
   hashPassword,
@@ -39,20 +39,20 @@ export class AuthService {
     };
 
     // Add profile data based on role
-    if (dto.role === UserRole.STUDENT && dto.firstName && dto.lastName) {
+    if (dto.role === Role.STUDENT && dto.firstName && dto.lastName) {
       userData.studentProfile = {
         create: {
           firstName: dto.firstName,
           lastName: dto.lastName,
         },
       };
-    } else if (dto.role === UserRole.COMPANY && dto.companyName) {
+    } else if (dto.role === Role.COMPANY && dto.companyName) {
       userData.companyProfile = {
         create: {
           companyName: dto.companyName,
         },
       };
-    } else if (dto.role === UserRole.UNIVERSITY && dto.universityName) {
+    } else if (dto.role === Role.UNIVERSITY && dto.universityName) {
       userData.universityProfile = {
         create: {
           universityName: dto.universityName,
@@ -104,7 +104,7 @@ export class AuthService {
     }
 
     // Check if user is active
-    if (user.status === 'SUSPENDED' || user.status === 'INACTIVE') {
+    if (user.status === 'SUSPENDED') {
       throw new Error('Account is not active');
     }
 
@@ -144,15 +144,25 @@ export class AuthService {
       throw new Error('Invalid refresh token');
     }
 
-    // Check if refresh token exists in database
-    const storedToken = await this.authRepository.findRefreshToken(refreshToken);
-    if (!storedToken) {
+    // Find all refresh tokens for user and verify against hashed versions
+    const userTokens = await this.authRepository.findUserRefreshTokens(payload.userId);
+    
+    let validToken = null;
+    for (const storedToken of userTokens) {
+      const isValid = await comparePassword(refreshToken, storedToken.tokenHash);
+      if (isValid) {
+        validToken = storedToken;
+        break;
+      }
+    }
+
+    if (!validToken) {
       throw new Error('Refresh token not found');
     }
 
     // Check if token is expired
-    if (storedToken.expiresAt < new Date()) {
-      await this.authRepository.deleteRefreshToken(refreshToken);
+    if (validToken.expiresAt < new Date()) {
+      await this.authRepository.deleteRefreshTokenById(validToken.id);
       throw new Error('Refresh token expired');
     }
 
@@ -161,12 +171,13 @@ export class AuthService {
     const newRefreshToken = generateRefreshToken(payload);
 
     // Delete old refresh token and save new one
-    await this.authRepository.deleteRefreshToken(refreshToken);
+    await this.authRepository.deleteRefreshTokenById(validToken.id);
+    const hashedNewRefreshToken = await hashPassword(newRefreshToken);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
     await this.authRepository.saveRefreshToken(
       payload.userId,
-      newRefreshToken,
+      hashedNewRefreshToken,
       expiresAt
     );
 
@@ -177,7 +188,21 @@ export class AuthService {
   }
 
   async logout(refreshToken: string): Promise<void> {
-    await this.authRepository.deleteRefreshToken(refreshToken);
+    // Find and delete the matching hashed token
+    try {
+      const payload = verifyRefreshToken(refreshToken);
+      const userTokens = await this.authRepository.findUserRefreshTokens(payload.userId);
+      
+      for (const storedToken of userTokens) {
+        const isValid = await comparePassword(refreshToken, storedToken.tokenHash);
+        if (isValid) {
+          await this.authRepository.deleteRefreshTokenById(storedToken.id);
+          break;
+        }
+      }
+    } catch (error) {
+      // Token invalid or expired, ignore
+    }
   }
 
   async getCurrentUser(userId: number): Promise<Omit<User, 'password'> | null> {

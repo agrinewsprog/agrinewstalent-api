@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { OffersService } from './offers.service';
-import { JobOfferStatus } from '@prisma/client';
+import { GetOffersDto } from './offers.dto';
 
 export class OffersController {
   private offersService: OffersService;
@@ -15,16 +15,10 @@ export class OffersController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { status } = req.query;
+      const filters = req.query as unknown as GetOffersDto;
+      const result = await this.offersService.getAllOffers(filters);
 
-      const filters: any = {};
-      if (status) {
-        filters.status = status as JobOfferStatus;
-      }
-
-      const offers = await this.offersService.getAllOffers(filters);
-
-      res.status(200).json({ offers });
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
@@ -62,9 +56,9 @@ export class OffersController {
         return;
       }
 
-      // Get company profile ID (assuming user has companyProfile)
-      // In real app, you'd fetch this from the user's company profile
-      const companyId = req.user.userId; // Placeholder - needs proper implementation
+      const companyId = await this.offersService.getCompanyIdFromUserId(
+        req.user.userId
+      );
 
       const offer = await this.offersService.createOffer(companyId, req.body);
 
@@ -93,7 +87,9 @@ export class OffersController {
       }
 
       const id = parseInt(String(req.params.id), 10);
-      const companyId = req.user.userId; // Placeholder
+      const companyId = await this.offersService.getCompanyIdFromUserId(
+        req.user.userId
+      );
 
       const offer = await this.offersService.updateOffer(
         id,
@@ -126,7 +122,9 @@ export class OffersController {
       }
 
       const id = parseInt(String(req.params.id), 10);
-      const companyId = req.user.userId; // Placeholder
+      const companyId = await this.offersService.getCompanyIdFromUserId(
+        req.user.userId
+      );
 
       await this.offersService.deleteOffer(id, companyId);
 
@@ -152,7 +150,9 @@ export class OffersController {
       }
 
       const id = parseInt(String(req.params.id), 10);
-      const companyId = req.user.userId; // Placeholder
+      const companyId = await this.offersService.getCompanyIdFromUserId(
+        req.user.userId
+      );
 
       const offer = await this.offersService.publishOffer(id, companyId);
 
@@ -181,7 +181,9 @@ export class OffersController {
       }
 
       const id = parseInt(String(req.params.id), 10);
-      const companyId = req.user.userId; // Placeholder
+      const companyId = await this.offersService.getCompanyIdFromUserId(
+        req.user.userId
+      );
 
       const offer = await this.offersService.closeOffer(id, companyId);
 
@@ -194,6 +196,85 @@ export class OffersController {
         res.status(400).json({ error: error.message });
         return;
       }
+      next(error);
+    }
+  };
+
+  save = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const offerId = parseInt(String(req.params.id), 10);
+      const studentId = await this.offersService.getStudentIdFromUserId(
+        req.user.userId
+      );
+
+      await this.offersService.saveOffer(studentId, offerId);
+
+      res.status(200).json({ message: 'Offer saved successfully' });
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      next(error);
+    }
+  };
+
+  unsave = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const offerId = parseInt(String(req.params.id), 10);
+      const studentId = await this.offersService.getStudentIdFromUserId(
+        req.user.userId
+      );
+
+      await this.offersService.unsaveOffer(studentId, offerId);
+
+      res.status(200).json({ message: 'Offer unsaved successfully' });
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      next(error);
+    }
+  };
+
+  getSaved = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const studentId = await this.offersService.getStudentIdFromUserId(
+        req.user.userId
+      );
+
+      const offers = await this.offersService.getSavedOffers(studentId);
+
+      res.status(200).json({ offers });
+    } catch (error) {
       next(error);
     }
   };
