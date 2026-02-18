@@ -1,4 +1,5 @@
 import { Router } from 'express';
+
 import authRoutes from '../modules/auth/auth.routes';
 import offersRoutes from '../modules/offers/offers.routes';
 import applicationsRoutes from '../modules/applications/applications.routes';
@@ -8,6 +9,7 @@ import coursesRoutes from '../modules/courses/courses.routes';
 import promotionsRoutes from '../modules/promotions/promotions.routes';
 import notificationsRoutes from '../modules/notifications/notifications.routes';
 import agreementsRoutes from '../modules/agreements/agreements.routes';
+import companiesRoutes from '../modules/companies/companies.routes';
 
 const router = Router();
 
@@ -26,10 +28,6 @@ router.use('/courses', coursesRoutes);
 router.use('/promotions', promotionsRoutes);
 router.use('/notifications', notificationsRoutes);
 router.use('/agreements', agreementsRoutes);
-
-// Not found handler
-router.use('*', (_req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+router.use('/companies', companiesRoutes);
 
 export default router;

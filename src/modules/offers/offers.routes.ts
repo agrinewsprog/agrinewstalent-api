@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { OffersController } from './offers.controller';
+import { ApplicationsController } from '../applications/applications.controller';
 import { authenticate, authorize, validate } from '../../common/middlewares';
 import { createOfferSchema, updateOfferSchema, getOffersSchema } from './offers.dto';
+import { applyToOfferSchema } from '../applications/applications.dto';
 import { Role } from '@prisma/client';
 
 const router = Router();
 const offersController = new OffersController();
+const applicationsController = new ApplicationsController();
 
 /**
  * @route   GET /offers
@@ -81,6 +84,23 @@ router.post(
   authenticate,
   authorize(Role.COMPANY),
   offersController.close
+);
+
+/**
+ * @route   POST /offers/:id/apply
+ * @desc    Apply to job offer
+ * @access  Private - STUDENT only
+ */
+router.post(
+  '/:id/apply',
+  authenticate,
+  authorize(Role.STUDENT),
+  validate(applyToOfferSchema),
+  async (req, res, next) => {
+    // Remap :id to :offerId for ApplicationsController
+    req.params.offerId = req.params.id;
+    return applicationsController.applyToOffer(req, res, next);
+  }
 );
 
 /**

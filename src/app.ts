@@ -13,10 +13,8 @@ const app: Application = express();
 // SECURITY MIDDLEWARE
 // ============================================================
 
-// Helmet for security headers
 app.use(helmet());
 
-// CORS configuration
 app.use(
   cors({
     origin: env.frontendUrl,
@@ -26,7 +24,7 @@ app.use(
   })
 );
 
-// Rate limiting
+// Rate limiting (aplica a /api)
 const limiter = rateLimit({
   windowMs: env.rateLimit.windowMs,
   max: env.rateLimit.maxRequests,
@@ -51,7 +49,15 @@ app.use(cookieParser());
 app.use('/api', routes);
 
 // ============================================================
-// ERROR HANDLING
+// 404 HANDLER (after routes, before errorHandler)
+// ============================================================
+
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// ============================================================
+// ERROR HANDLING (must be last)
 // ============================================================
 
 app.use(errorHandler);

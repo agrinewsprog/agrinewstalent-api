@@ -39,24 +39,60 @@ export class AuthService {
     };
 
     // Add profile data based on role
-    if (dto.role === Role.STUDENT && dto.firstName && dto.lastName) {
+    if (dto.role === Role.STUDENT) {
+      const studentData: any = {
+        firstName: dto.firstName!,
+        lastName: dto.lastName!,
+      };
+
+      // Add optional fields if provided
+      if (dto.phoneNumber) studentData.phoneNumber = dto.phoneNumber;
+      if (dto.city) studentData.city = dto.city;
+      if (dto.country) studentData.country = dto.country;
+      if (dto.resumeUrl) studentData.resumeUrl = dto.resumeUrl;
+      if (dto.linkedinUrl) studentData.linkedinUrl = dto.linkedinUrl;
+      if (dto.githubUrl) studentData.githubUrl = dto.githubUrl;
+      if (dto.bio) studentData.bio = dto.bio;
+      if (dto.skills) studentData.skills = dto.skills;
+      if (dto.dateOfBirth) studentData.dateOfBirth = dto.dateOfBirth;
+      if (dto.careerField) studentData.careerField = dto.careerField;
+
       userData.studentProfile = {
-        create: {
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-        },
+        create: studentData,
       };
-    } else if (dto.role === Role.COMPANY && dto.companyName) {
+    } else if (dto.role === Role.COMPANY) {
+      const companyData: any = {
+        companyName: dto.companyName!,
+      };
+
+      // Add optional fields if provided
+      if (dto.industry) companyData.industry = dto.industry;
+      if (dto.size) companyData.size = dto.size;
+      if (dto.website) companyData.website = dto.website;
+      if (dto.description) companyData.description = dto.description;
+      if (dto.logoUrl) companyData.logoUrl = dto.logoUrl;
+      if (dto.city) companyData.city = dto.city;
+      if (dto.country) companyData.country = dto.country;
+      if (dto.foundedYear) companyData.foundedYear = dto.foundedYear;
+      if (dto.companySize) companyData.companySize = dto.companySize;
+
       userData.companyProfile = {
-        create: {
-          companyName: dto.companyName,
-        },
+        create: companyData,
       };
-    } else if (dto.role === Role.UNIVERSITY && dto.universityName) {
+    } else if (dto.role === Role.UNIVERSITY) {
+      const universityData: any = {
+        universityName: dto.universityName!,
+      };
+
+      // Add optional fields if provided
+      if (dto.city) universityData.city = dto.city;
+      if (dto.country) universityData.country = dto.country;
+      if (dto.website) universityData.website = dto.website;
+      if (dto.description) universityData.description = dto.description;
+      if (dto.logoUrl) universityData.logoUrl = dto.logoUrl;
+
       userData.universityProfile = {
-        create: {
-          universityName: dto.universityName,
-        },
+        create: universityData,
       };
     }
 
