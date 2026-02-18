@@ -1,0 +1,475 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  STUDENT
+  COMPANY
+  UNIVERSITY
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum JobOfferStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  EXPIRED
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWING
+  SHORTLISTED
+  INTERVIEWING
+  REJECTED
+  ACCEPTED
+  WITHDRAWN
+}
+
+enum ProgramCompanyStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProgramOfferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AgreementStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+// ============================================================
+// USER & PROFILES
+// ============================================================
+
+model User {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String
+  role      UserRole
+  status    UserStatus @default(PENDING_VERIFICATION)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Profiles
+  studentProfile     StudentProfile?
+  companyProfile     CompanyProfile?
+  universityProfile  UniversityProfile?
+
+  // Relations
+  refreshTokens      RefreshToken[]
+  notifications      Notification[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model StudentProfile {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  firstName    String
+  lastName     String
+  phoneNumber  String?
+  city         String?
+  country      String?
+  resumeUrl    String?
+  linkedinUrl  String?
+  githubUrl    String?
+  bio          String?  @db.Text
+  skills       String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  applications        JobApplication[]
+  savedOffers         SavedOffer[]
+  courseCompletions   CourseCompletion[]
+  programApplications ProgramApplication[]
+
+  @@index([userId])
+}
+
+model CompanyProfile {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  companyName  String
+  industry     String?
+  size         String?
+  website      String?
+  description  String?  @db.Text
+  logoUrl      String?
+  city         String?
+  country      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  jobOffers       JobOffer[]
+  companyNotes    CompanyNote[]
+  programCompanies ProgramCompany[]
+
+  @@index([userId])
+}
+
+model UniversityProfile {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  universityName String
+  city           String?
+  country        String?
+  website        String?
+  description    String?  @db.Text
+  logoUrl        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  programs    Program[]
+  agreements  Agreement[]
+  invites     UniversityInvite[]
+  memberships UniversityMembership[]
+
+  @@index([userId])
+}
+
+// ============================================================
+// JOB OFFERS & APPLICATIONS
+// ============================================================
+
+model JobOffer {
+  id              Int             @id @default(autoincrement())
+  companyId       Int
+  title           String
+  description     String          @db.Text
+  requirements    String?         @db.Text
+  location        String?
+  salary          String?
+  contractType    String?
+  experienceLevel String?
+  status          JobOfferStatus  @default(DRAFT)
+  publishedAt     DateTime?
+  closedAt        DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  company         CompanyProfile  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  applications    JobApplication[]
+  savedOffers     SavedOffer[]
+  programOffers   ProgramOffer[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model SavedOffer {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  offerId   Int
+  createdAt DateTime @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  offer   JobOffer       @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, offerId])
+  @@index([studentId])
+  @@index([offerId])
+}
+
+model JobApplication {
+  id              Int               @id @default(autoincrement())
+  studentId       Int
+  offerId         Int
+  coverLetter     String?           @db.Text
+  resumeUrl       String?
+  status          ApplicationStatus @default(PENDING)
+  appliedAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  student         StudentProfile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  offer           JobOffer          @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  events          ApplicationEvent[]
+  companyNotes    CompanyNote[]
+
+  @@unique([studentId, offerId])
+  @@index([studentId])
+  @@index([offerId])
+  @@index([status])
+}
+
+model ApplicationEvent {
+  id            Int      @id @default(autoincrement())
+  applicationId Int
+  eventType     String
+  description   String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model CompanyNote {
+  id            Int      @id @default(autoincrement())
+  companyId     Int
+  applicationId Int
+  note          String   @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company     CompanyProfile  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  application JobApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([applicationId])
+}
+
+// ============================================================
+// PROGRAMS
+// ============================================================
+
+model Program {
+  id            Int      @id @default(autoincrement())
+  universityId  Int
+  name          String
+  description   String?  @db.Text
+  startDate     DateTime?
+  endDate       DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  university  UniversityProfile @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  programCompanies     ProgramCompany[]
+  programOffers        ProgramOffer[]
+  programApplications  ProgramApplication[]
+
+  @@index([universityId])
+  @@index([isActive])
+}
+
+model ProgramCompany {
+  id        Int                  @id @default(autoincrement())
+  programId Int
+  companyId Int
+  status    ProgramCompanyStatus @default(PENDING)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  program Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  company CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, companyId])
+  @@index([programId])
+  @@index([companyId])
+}
+
+model ProgramOffer {
+  id        Int                @id @default(autoincrement())
+  programId Int
+  offerId   Int
+  status    ProgramOfferStatus @default(PENDING)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  program Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  offer   JobOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, offerId])
+  @@index([programId])
+  @@index([offerId])
+}
+
+model ProgramApplication {
+  id        Int      @id @default(autoincrement())
+  programId Int
+  studentId Int
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  program Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, studentId])
+  @@index([programId])
+  @@index([studentId])
+}
+
+// ============================================================
+// UNIVERSITY MANAGEMENT
+// ============================================================
+
+model UniversityInvite {
+  id           Int      @id @default(autoincrement())
+  universityId Int
+  email        String
+  token        String   @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  university UniversityProfile @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@index([universityId])
+  @@index([token])
+}
+
+model UniversityMembership {
+  id           Int      @id @default(autoincrement())
+  universityId Int
+  studentEmail String
+  joinedAt     DateTime @default(now())
+
+  university UniversityProfile @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@unique([universityId, studentEmail])
+  @@index([universityId])
+}
+
+// ============================================================
+// COURSES
+// ============================================================
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?  @db.Text
+  duration    String?
+  level       String?
+  url         String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  completions CourseCompletion[]
+
+  @@index([isActive])
+}
+
+model CourseCompletion {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  courseId    Int
+  completedAt DateTime @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([courseId])
+}
+
+// ============================================================
+// PROMOTIONS & NOTIFICATIONS
+// ============================================================
+
+model Promotion {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?   @db.Text
+  imageUrl    String?
+  link        String?
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+  @@index([startDate])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String   @db.Text
+  type      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+// ============================================================
+// AGREEMENTS
+// ============================================================
+
+model Agreement {
+  id           Int             @id @default(autoincrement())
+  universityId Int
+  companyId    Int?
+  title        String
+  description  String?         @db.Text
+  documentUrl  String?
+  status       AgreementStatus @default(DRAFT)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  university UniversityProfile @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@index([universityId])
+  @@index([status])
+}
+
+// ============================================================
+// AUTHENTICATION
+// ============================================================
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique @db.Text
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token(length: 255)])
+}
