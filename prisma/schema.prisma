@@ -133,8 +133,9 @@ model StudentProfile {
   skills      String?  @db.Text
   
   // FASE 3 - University affiliation
-  dateOfBirth String?
-  careerField String?
+  dateOfBirth    String?
+  careerField    String?
+  isActiveStudent Boolean @default(false) // true = estudiante universitario activo, false = buscador de empleo
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -153,6 +154,7 @@ model StudentProfile {
   courseCompletions CourseCompletion[]
 
   @@index([userId])
+  @@index([isActiveStudent])
 }
 
 model CompanyProfile {
@@ -221,12 +223,12 @@ model UniversityProfile {
 // ============================================================
 
 model RefreshToken {
-  id        Int       @id @default(autoincrement())
-  userId    Int
-  tokenHash String    @unique @db.VarChar(191)
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  tokenHash  String   @unique @db.VarChar(191)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

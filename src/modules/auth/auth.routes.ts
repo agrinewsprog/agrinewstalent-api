@@ -11,14 +11,16 @@ const authController = new AuthController();
  * @desc    Register a new user
  * @access  Public
  */
-router.post('/register', validate(registerSchema), authController.register);
+// 'all' is required because registerSchema wraps input in { body: ... }
+router.post('/register', validate(registerSchema, 'all'), authController.register);
 
 /**
  * @route   POST /auth/login
  * @desc    Login user
  * @access  Public
  */
-router.post('/login', validate(loginSchema), authController.login);
+// 'all' is required because loginSchema wraps input in { body: ... }
+router.post('/login', validate(loginSchema, 'all'), authController.login);
 
 /**
  * @route   POST /auth/refresh
