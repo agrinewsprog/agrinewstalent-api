@@ -135,6 +135,38 @@ export class OffersService {
     });
   }
 
+  /**
+   * Change the status of an offer to any valid target status.
+   * Allowed transitions:
+   *   DRAFT      → PUBLISHED | CLOSED
+   *   PUBLISHED  → DRAFT     | CLOSED
+   *   CLOSED     → DRAFT     | PUBLISHED
+   */
+  async changeOfferStatus(
+    id: number,
+    companyId: number,
+    targetStatus: JobOfferStatus
+  ): Promise<JobOffer> {
+    const offer = await this.offersRepository.findById(id);
+    if (!offer) {
+      throw new Error('Offer not found');
+    }
+    if (offer.companyId !== companyId) {
+      throw new Error('Unauthorized to change status of this offer');
+    }
+
+    const data: Record<string, unknown> = { status: targetStatus };
+
+    if (targetStatus === JobOfferStatus.PUBLISHED && !offer.publishedAt) {
+      data.publishedAt = new Date();
+    }
+    if (targetStatus === JobOfferStatus.CLOSED && !offer.closedAt) {
+      data.closedAt = new Date();
+    }
+
+    return this.offersRepository.update(id, data);
+  }
+
   async saveOffer(studentId: number, offerId: number): Promise<void> {
     // Verify offer exists and is published
     const offer = await this.offersRepository.findById(offerId);

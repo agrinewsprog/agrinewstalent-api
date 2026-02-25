@@ -131,7 +131,8 @@ model StudentProfile {
   githubUrl   String?
   bio         String?  @db.Text
   skills      String?  @db.Text
-  
+  avatarUrl   String?
+
   // FASE 3 - University affiliation
   dateOfBirth    String?
   careerField    String?
@@ -153,8 +154,59 @@ model StudentProfile {
   // Relations - FASE 4
   courseCompletions CourseCompletion[]
 
+  // Relations - Perfil extendido
+  education  StudentEducation[]
+  experience StudentExperience[]
+  languages  StudentLanguage[]
+
   @@index([userId])
   @@index([isActiveStudent])
+}
+
+model StudentEducation {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  degree      String
+  institution String
+  startDate   String
+  endDate     String?
+  current     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model StudentExperience {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  position  String
+  company   String
+  startDate String
+  endDate   String?
+  current   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model StudentLanguage {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  language  String
+  level     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@unique([studentId, language])
 }
 
 model CompanyProfile {

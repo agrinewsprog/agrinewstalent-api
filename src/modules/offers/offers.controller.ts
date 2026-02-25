@@ -200,6 +200,52 @@ export class OffersController {
     }
   };
 
+  changeStatus = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const id = parseInt(String(req.params.id), 10);
+      const { status } = req.body as { status: string };
+
+      const companyId = await this.offersService.getCompanyIdFromUserId(
+        req.user.userId
+      );
+
+      const { JobOfferStatus } = await import('@prisma/client');
+      const validStatuses = Object.values(JobOfferStatus) as string[];
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({
+          error: { message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+        });
+        return;
+      }
+
+      const offer = await this.offersService.changeOfferStatus(
+        id,
+        companyId,
+        status as import('@prisma/client').JobOfferStatus
+      );
+
+      res.status(200).json({
+        message: 'Offer status updated successfully',
+        offer,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      next(error);
+    }
+  };
+
   save = async (
     req: Request,
     res: Response,

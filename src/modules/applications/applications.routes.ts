@@ -12,12 +12,20 @@ import { Role } from '@prisma/client';
 const router = Router();
 const applicationsController = new ApplicationsController();
 
+// Aplicar a una oferta desde el body: POST /api/applications { offerId, ... }
+router.post(
+  '/',
+  authenticate,
+  authorize(Role.STUDENT),
+  applicationsController.applyFromBody
+);
+
 // Aplicar a una oferta (solo estudiantes)
 router.post(
   '/offers/:offerId/apply',
   authenticate,
   authorize(Role.STUDENT),
-  validate(applyToOfferSchema),
+  validate(applyToOfferSchema, 'all'),
   applicationsController.applyToOffer
 );
 
@@ -26,7 +34,7 @@ router.get(
   '/students/me',
   authenticate,
   authorize(Role.STUDENT),
-  validate(getApplicationsSchema, 'query'),
+  validate(getApplicationsSchema, 'all'),
   applicationsController.getStudentApplications
 );
 
@@ -35,7 +43,7 @@ router.get(
   '/companies/me',
   authenticate,
   authorize(Role.COMPANY),
-  validate(getApplicationsSchema, 'query'),
+  validate(getApplicationsSchema, 'all'),
   applicationsController.getCompanyApplications
 );
 
@@ -44,7 +52,7 @@ router.patch(
   '/:id/status',
   authenticate,
   authorize(Role.COMPANY),
-  validate(updateApplicationStatusSchema),
+  validate(updateApplicationStatusSchema, 'all'),
   applicationsController.updateStatus
 );
 
@@ -53,7 +61,7 @@ router.post(
   '/:id/notes',
   authenticate,
   authorize(Role.COMPANY),
-  validate(createNoteSchema),
+  validate(createNoteSchema, 'all'),
   applicationsController.addNote
 );
 

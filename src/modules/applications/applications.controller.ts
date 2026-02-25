@@ -44,6 +44,47 @@ export class ApplicationsController {
     }
   };
 
+  // POST /api/applications  { offerId, coverLetter?, resumeUrl? }
+  applyFromBody = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const offerId = parseInt(String(req.body.offerId), 10);
+      if (!offerId || isNaN(offerId)) {
+        res.status(400).json({ error: 'offerId is required' });
+        return;
+      }
+
+      const studentId = await this.applicationsService.getStudentIdFromUserId(
+        req.user.userId
+      );
+
+      const application = await this.applicationsService.applyToOffer(
+        studentId,
+        offerId,
+        { coverLetter: req.body.coverLetter, resumeUrl: req.body.resumeUrl }
+      );
+
+      res.status(201).json({
+        message: 'Application submitted successfully',
+        application,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      next(error);
+    }
+  };
+
   getStudentApplications = async (
     req: Request,
     res: Response,

@@ -10,6 +10,8 @@ import promotionsRoutes from '../modules/promotions/promotions.routes';
 import notificationsRoutes from '../modules/notifications/notifications.routes';
 import agreementsRoutes from '../modules/agreements/agreements.routes';
 import companiesRoutes from '../modules/companies/companies.routes';
+import savedOffersRoutes from '../modules/saved-offers/saved-offers.routes';
+import studentsRoutes from '../modules/students/students.routes';
 
 const router = Router();
 
@@ -29,5 +31,7 @@ router.use('/promotions', promotionsRoutes);
 router.use('/notifications', notificationsRoutes);
 router.use('/agreements', agreementsRoutes);
 router.use('/companies', companiesRoutes);
+router.use('/saved-offers', savedOffersRoutes);
+router.use('/student', studentsRoutes);
 
 export default router;

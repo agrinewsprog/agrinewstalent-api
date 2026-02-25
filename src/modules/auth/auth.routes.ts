@@ -43,4 +43,11 @@ router.post('/logout', authController.logout);
  */
 router.get('/me', authenticate, authController.me);
 
+/**
+ * @route   PUT /auth/me/profile
+ * @desc    Update current user profile (firstName, lastName, etc.)
+ * @access  Private
+ */
+router.put('/me/profile', authenticate, authController.updateProfile);
+
 export default router;

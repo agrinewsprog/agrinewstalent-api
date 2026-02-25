@@ -40,10 +40,19 @@ export const validate = (schema: ZodSchema, source: ValidateSource = 'body') => 
     if (source === 'all') {
       const parsed = result.data as { body?: any; query?: any; params?: any };
       if (parsed.body !== undefined) req.body = parsed.body;
-      if (parsed.query !== undefined) req.query = parsed.query;
-      if (parsed.params !== undefined) req.params = parsed.params;
+      // Express 5: req.query and req.params are read-only getters — use Object.assign
+      // to replace individual properties without replacing the object reference.
+      if (parsed.query !== undefined) Object.assign(req.query, parsed.query);
+      if (parsed.params !== undefined) Object.assign(req.params, parsed.params);
     } else {
-      (req as any)[source] = result.data;
+      // Express 5: req.query and req.params are getter-only — cannot reassign
+      if (source === 'query') {
+        Object.assign(req.query, result.data);
+      } else if (source === 'params') {
+        Object.assign(req.params, result.data);
+      } else {
+        (req as any)[source] = result.data;
+      }
     }
 
     next();

@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import { env } from './config/env';
 import { errorHandler } from './common/middlewares';
 import routes from './routes';
@@ -81,6 +82,16 @@ app.use('/api', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// ============================================================
+// STATIC FILES (uploads: avatars, CVs)
+// ============================================================
+// Cross-Origin-Resource-Policy: cross-origin permite que el frontend
+// (localhost:3000) cargue imágenes y PDFs servidos desde esta API (localhost:4000).
+app.use('/uploads', (_req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '..', 'public', 'uploads')));
 
 // ============================================================
 // ROUTES

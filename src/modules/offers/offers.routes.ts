@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { OffersController } from './offers.controller';
 import { ApplicationsController } from '../applications/applications.controller';
 import { authenticate, authorize, validate } from '../../common/middlewares';
-import { createOfferSchema, updateOfferSchema, getOffersSchema } from './offers.dto';
+import { createOfferSchema, updateOfferSchema, getOffersSchema, changeOfferStatusSchema } from './offers.dto';
 import { applyToOfferSchema } from '../applications/applications.dto';
 import { Role } from '@prisma/client';
 
@@ -15,7 +15,7 @@ const applicationsController = new ApplicationsController();
  * @desc    Get all offers with filters and pagination
  * @access  Public
  */
-router.get('/', validate(getOffersSchema), offersController.getAll);
+router.get('/', validate(getOffersSchema, 'all'), offersController.getAll);
 
 /**
  * @route   GET /offers/:id
@@ -33,7 +33,7 @@ router.post(
   '/',
   authenticate,
   authorize(Role.COMPANY),
-  validate(createOfferSchema),
+  validate(createOfferSchema, 'all'),
   offersController.create
 );
 
@@ -46,7 +46,7 @@ router.put(
   '/:id',
   authenticate,
   authorize(Role.COMPANY),
-  validate(updateOfferSchema),
+  validate(updateOfferSchema, 'all'),
   offersController.update
 );
 
@@ -60,6 +60,19 @@ router.delete(
   authenticate,
   authorize(Role.COMPANY),
   offersController.delete
+);
+
+/**
+ * @route   PATCH /offers/:id/status
+ * @desc    Change offer status (DRAFT ↔ PUBLISHED ↔ CLOSED)
+ * @access  Private - COMPANY only
+ */
+router.patch(
+  '/:id/status',
+  authenticate,
+  authorize(Role.COMPANY),
+  validate(changeOfferStatusSchema, 'all'),
+  offersController.changeStatus
 );
 
 /**
@@ -95,7 +108,7 @@ router.post(
   '/:id/apply',
   authenticate,
   authorize(Role.STUDENT),
-  validate(applyToOfferSchema),
+  validate(applyToOfferSchema, 'all'),
   async (req, res, next) => {
     // Remap :id to :offerId for ApplicationsController
     req.params.offerId = req.params.id;

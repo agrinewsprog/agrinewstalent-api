@@ -29,6 +29,14 @@ export const updateOfferSchema = z.object({
   }),
 });
 
+export const changeOfferStatusSchema = z.object({
+  body: z.object({
+    status: z.nativeEnum(JobOfferStatus, {
+      message: `Status must be one of: ${Object.values(JobOfferStatus).join(', ')}`,
+    }),
+  }),
+});
+
 export const getOffersSchema = z.object({
   query: z.object({
     status: z.nativeEnum(JobOfferStatus).optional(),
@@ -45,4 +53,6 @@ export const getOffersSchema = z.object({
 
 export type CreateOfferDto = z.infer<typeof createOfferSchema>['body'];
 export type UpdateOfferDto = z.infer<typeof updateOfferSchema>['body'];
+export type ChangeOfferStatusDto = z.infer<typeof changeOfferStatusSchema>['body'];
 export type GetOffersDto = z.infer<typeof getOffersSchema>['query'];
+

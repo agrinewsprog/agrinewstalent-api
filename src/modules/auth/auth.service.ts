@@ -342,13 +342,81 @@ export class AuthService {
     }
   }
 
-  async getCurrentUser(userId: number): Promise<Omit<User, 'password'> | null> {
+  async updateStudentProfile(userId: number, data: {
+    firstName?: string;
+    lastName?: string;
+    birthDate?: string;
+    location?: string;
+    country?: string;
+    phoneNumber?: string;
+    bio?: string;
+    skills?: string;
+    linkedinUrl?: string;
+    githubUrl?: string;
+    resumeUrl?: string;
+    careerField?: string;
+  }) {
+    const updated = await prisma.studentProfile.update({
+      where: { userId },
+      data: {
+        ...(data.firstName !== undefined && { firstName: data.firstName }),
+        ...(data.lastName !== undefined && { lastName: data.lastName }),
+        ...(data.birthDate !== undefined && { dateOfBirth: data.birthDate }),
+        ...(data.location !== undefined && { city: data.location }),
+        ...(data.country !== undefined && { country: data.country }),
+        ...(data.phoneNumber !== undefined && { phoneNumber: data.phoneNumber }),
+        ...(data.bio !== undefined && { bio: data.bio }),
+        ...(data.skills !== undefined && { skills: data.skills }),
+        ...(data.linkedinUrl !== undefined && { linkedinUrl: data.linkedinUrl }),
+        ...(data.githubUrl !== undefined && { githubUrl: data.githubUrl }),
+        ...(data.resumeUrl !== undefined && { resumeUrl: data.resumeUrl }),
+        ...(data.careerField !== undefined && { careerField: data.careerField }),
+      },
+      select: {
+        firstName: true, lastName: true, dateOfBirth: true, city: true,
+        country: true, phoneNumber: true, bio: true, skills: true,
+        linkedinUrl: true, githubUrl: true, resumeUrl: true, careerField: true,
+      },
+    });
+    return updated;
+  }
+
+  async getCurrentUser(userId: number): Promise<(Omit<User, 'password'> & { firstName?: string; lastName?: string }) | null> {
     const user = await this.authRepository.findUserById(userId);
     if (!user) {
       return null;
     }
 
     const { password: _, ...userWithoutPassword } = user;
+
+    if (user.role === Role.STUDENT) {
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { userId },
+        select: {
+          firstName: true, lastName: true, dateOfBirth: true, city: true,
+          country: true, phoneNumber: true, bio: true, skills: true,
+          linkedinUrl: true, githubUrl: true, resumeUrl: true, careerField: true,
+          avatarUrl: true,
+        },
+      });
+      return {
+        ...userWithoutPassword,
+        firstName: studentProfile?.firstName ?? undefined,
+        lastName: studentProfile?.lastName ?? undefined,
+        birthDate: studentProfile?.dateOfBirth ?? undefined,
+        location: studentProfile?.city ?? undefined,
+        country: studentProfile?.country ?? undefined,
+        phoneNumber: studentProfile?.phoneNumber ?? undefined,
+        bio: studentProfile?.bio ?? undefined,
+        skills: studentProfile?.skills ?? undefined,
+        linkedinUrl: studentProfile?.linkedinUrl ?? undefined,
+        githubUrl: studentProfile?.githubUrl ?? undefined,
+        resumeUrl: studentProfile?.resumeUrl ?? undefined,
+        careerField: studentProfile?.careerField ?? undefined,
+        avatarUrl: studentProfile?.avatarUrl ?? undefined,
+      } as any;
+    }
+
     return userWithoutPassword;
   }
 }
