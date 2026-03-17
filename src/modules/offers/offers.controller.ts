@@ -45,6 +45,29 @@ export class OffersController {
     }
   };
 
+  getMyOffers = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const companyId = await this.offersService.getCompanyIdFromUserId(
+        req.user.userId
+      );
+
+      const offers = await this.offersService.getCompanyOffers(companyId);
+
+      res.status(200).json({ offers });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   create = async (
     req: Request,
     res: Response,

@@ -18,6 +18,30 @@ const applicationsController = new ApplicationsController();
 router.get('/', validate(getOffersSchema, 'all'), offersController.getAll);
 
 /**
+ * @route   GET /offers/companies/me
+ * @desc    Get all offers for the authenticated company (all statuses)
+ * @access  Private - COMPANY only
+ */
+router.get(
+  '/companies/me',
+  authenticate,
+  authorize(Role.COMPANY),
+  offersController.getMyOffers
+);
+
+/**
+ * @route   GET /offers/saved/me
+ * @desc    Get saved offers for current student
+ * @access  Private - STUDENT only
+ */
+router.get(
+  '/saved/me',
+  authenticate,
+  authorize(Role.STUDENT),
+  offersController.getSaved
+);
+
+/**
  * @route   GET /offers/:id
  * @desc    Get offer by ID
  * @access  Public
@@ -138,18 +162,6 @@ router.delete(
   authenticate,
   authorize(Role.STUDENT),
   offersController.unsave
-);
-
-/**
- * @route   GET /offers/saved/me
- * @desc    Get saved offers for current student
- * @access  Private - STUDENT only
- */
-router.get(
-  '/saved/me',
-  authenticate,
-  authorize(Role.STUDENT),
-  offersController.getSaved
 );
 
 export default router;

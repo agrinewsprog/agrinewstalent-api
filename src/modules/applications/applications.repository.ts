@@ -47,14 +47,47 @@ export class ApplicationsRepository {
         include: {
           student: {
             select: {
+              id: true,
+              userId: true,
               firstName: true,
               lastName: true,
+              avatarUrl: true,
               resumeUrl: true,
               linkedinUrl: true,
               city: true,
               country: true,
               bio: true,
               skills: true,
+              user: {
+                select: { email: true },
+              },
+              education: {
+                select: {
+                  id: true,
+                  degree: true,
+                  institution: true,
+                  startDate: true,
+                  endDate: true,
+                  current: true,
+                },
+              },
+              experience: {
+                select: {
+                  id: true,
+                  company: true,
+                  position: true,
+                  startDate: true,
+                  endDate: true,
+                  current: true,
+                },
+              },
+              languages: {
+                select: {
+                  id: true,
+                  language: true,
+                  level: true,
+                },
+              },
             },
           },
           offer: {
@@ -92,10 +125,12 @@ export class ApplicationsRepository {
       include: {
         student: {
           select: {
+            id: true,
             userId: true,
             firstName: true,
             lastName: true,
             phoneNumber: true,
+            avatarUrl: true,
             resumeUrl: true,
             linkedinUrl: true,
             githubUrl: true,
@@ -103,6 +138,9 @@ export class ApplicationsRepository {
             country: true,
             bio: true,
             skills: true,
+            user: {
+              select: { email: true },
+            },
           },
         },
         offer: {
