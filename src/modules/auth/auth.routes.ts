@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
-import { validate, authenticate } from '../../common/middlewares';
+import { validate, authenticate, authorize } from '../../common/middlewares';
 import { registerSchema, loginSchema } from './auth.dto';
+import { Role } from '@prisma/client';
 
 const router = Router();
 const authController = new AuthController();
@@ -48,6 +49,6 @@ router.get('/me', authenticate, authController.me);
  * @desc    Update current user profile (firstName, lastName, etc.)
  * @access  Private
  */
-router.put('/me/profile', authenticate, authController.updateProfile);
+router.put('/me/profile', authenticate, authorize(Role.STUDENT), authController.updateProfile);
 
 export default router;

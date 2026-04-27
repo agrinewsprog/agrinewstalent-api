@@ -2,6 +2,15 @@ import { Request, Response, NextFunction } from 'express';
 import { OffersService } from './offers.service';
 import { GetOffersDto } from './offers.dto';
 
+function sendOffersError(
+  res: Response,
+  status: number,
+  message: string,
+  code: string,
+): void {
+  res.status(status).json({ error: { message, code } });
+}
+
 export class OffersController {
   private offersService: OffersService;
 
@@ -52,7 +61,7 @@ export class OffersController {
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendOffersError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
@@ -60,10 +69,14 @@ export class OffersController {
         req.user.userId
       );
 
-      const offers = await this.offersService.getCompanyOffers(companyId);
+      const result = await this.offersService.getCompanyOffers(companyId);
 
-      res.status(200).json({ offers });
+      res.status(200).json({ companyId, ...result });
     } catch (error) {
+      if (error instanceof Error) {
+        sendOffersError(res, 400, error.message, 'COMPANY_OFFERS_ERROR');
+        return;
+      }
       next(error);
     }
   };

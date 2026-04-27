@@ -8,6 +8,14 @@ export const applyToOfferSchema = z.object({
   }),
 });
 
+export const applyToOfferFromBodySchema = z.object({
+  body: z.object({
+    offerId: z.coerce.number().int().positive(),
+    coverLetter: z.string().optional(),
+    resumeUrl: z.string().url().optional(),
+  }),
+});
+
 export const updateApplicationStatusSchema = z.object({
   body: z.object({
     status: z.nativeEnum(ApplicationStatus, {
@@ -33,6 +41,7 @@ export const getApplicationsSchema = z.object({
 });
 
 export type ApplyToOfferDto = z.infer<typeof applyToOfferSchema>['body'];
+export type ApplyToOfferFromBodyDto = z.infer<typeof applyToOfferFromBodySchema>['body'];
 export type UpdateApplicationStatusDto = z.infer<typeof updateApplicationStatusSchema>['body'];
 export type CreateNoteDto = z.infer<typeof createNoteSchema>['body'];
 export type GetApplicationsDto = z.infer<typeof getApplicationsSchema>['query'];

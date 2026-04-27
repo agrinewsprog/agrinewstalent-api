@@ -32,6 +32,6 @@ router.use('/notifications', notificationsRoutes);
 router.use('/agreements', agreementsRoutes);
 router.use('/companies', companiesRoutes);
 router.use('/saved-offers', savedOffersRoutes);
-router.use('/student', studentsRoutes);
+router.use('/students', studentsRoutes);
 
 export default router;

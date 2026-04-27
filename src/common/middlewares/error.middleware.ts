@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import multer from 'multer';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -15,6 +16,24 @@ export const errorHandler = (
   } else {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[ErrorHandler]', msg);
+  }
+
+  // Multer file-upload errors (size, field name, etc.)
+  if (error instanceof multer.MulterError) {
+    const messages: Record<string, string> = {
+      LIMIT_FILE_SIZE: 'File too large',
+      LIMIT_UNEXPECTED_FILE: 'Unexpected file field',
+      LIMIT_FILE_COUNT: 'Too many files',
+      LIMIT_PART_COUNT: 'Too many parts',
+    };
+    res.status(400).json({
+      error: {
+        message: messages[error.code] ?? error.message,
+        code: 'UPLOAD_ERROR',
+        details: { multerCode: error.code, field: error.field },
+      },
+    });
+    return;
   }
 
   // Zod validation errors that slip past the validate middleware

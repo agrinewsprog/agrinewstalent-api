@@ -2,6 +2,25 @@ import { Request, Response, NextFunction } from 'express';
 import { ApplicationsService } from './applications.service';
 import { GetApplicationsDto } from './applications.dto';
 
+function sendApplicationsError(
+  res: Response,
+  status: number,
+  message: string,
+  code: string,
+  details?: unknown,
+): void {
+  const body: Record<string, unknown> = { error: { message, code } };
+  if (details !== undefined) {
+    (body.error as Record<string, unknown>).details = details;
+  }
+  res.status(status).json(body);
+}
+
+function parsePositiveInt(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 export class ApplicationsController {
   private applicationsService: ApplicationsService;
 
@@ -12,73 +31,82 @@ export class ApplicationsController {
   applyToOffer = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendApplicationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const offerId = parseInt(String(req.params.offerId), 10);
-      const studentId = await this.applicationsService.getStudentIdFromUserId(
-        req.user.userId
-      );
+      const offerId = parsePositiveInt(req.params.offerId);
+      if (!offerId) {
+        sendApplicationsError(res, 400, 'Invalid offer ID', 'INVALID_ID');
+        return;
+      }
 
-      const application = await this.applicationsService.applyToOffer(
-        studentId,
-        offerId,
-        req.body
-      );
+      const studentId = await this.applicationsService.getStudentIdFromUserId(req.user.userId);
+      const application = await this.applicationsService.applyToOffer(studentId, offerId, req.body);
 
       res.status(201).json({
-        message: 'Application submitted successfully',
+        message: 'Application created successfully',
         application,
       });
     } catch (error) {
       if (error instanceof Error) {
-        res.status(400).json({ error: error.message });
+        if (error.message === 'Offer not found') {
+          sendApplicationsError(res, 404, error.message, 'NOT_FOUND');
+          return;
+        }
+        if (error.message === 'Already applied to this offer') {
+          sendApplicationsError(res, 409, error.message, 'APPLICATION_ALREADY_EXISTS');
+          return;
+        }
+        sendApplicationsError(res, 400, error.message, 'APPLICATION_CREATE_ERROR');
         return;
       }
       next(error);
     }
   };
 
-  // POST /api/applications  { offerId, coverLetter?, resumeUrl? }
   applyFromBody = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendApplicationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const offerId = parseInt(String(req.body.offerId), 10);
-      if (!offerId || isNaN(offerId)) {
-        res.status(400).json({ error: 'offerId is required' });
+      const offerId = parsePositiveInt(req.body.offerId);
+      if (!offerId) {
+        sendApplicationsError(res, 400, 'offerId is required', 'INVALID_ID');
         return;
       }
 
-      const studentId = await this.applicationsService.getStudentIdFromUserId(
-        req.user.userId
-      );
-
-      const application = await this.applicationsService.applyToOffer(
-        studentId,
-        offerId,
-        { coverLetter: req.body.coverLetter, resumeUrl: req.body.resumeUrl }
-      );
+      const studentId = await this.applicationsService.getStudentIdFromUserId(req.user.userId);
+      const application = await this.applicationsService.applyToOffer(studentId, offerId, {
+        coverLetter: req.body.coverLetter,
+        resumeUrl: req.body.resumeUrl,
+      });
 
       res.status(201).json({
-        message: 'Application submitted successfully',
+        message: 'Application created successfully',
         application,
       });
     } catch (error) {
       if (error instanceof Error) {
-        res.status(400).json({ error: error.message });
+        if (error.message === 'Offer not found') {
+          sendApplicationsError(res, 404, error.message, 'NOT_FOUND');
+          return;
+        }
+        if (error.message === 'Already applied to this offer') {
+          sendApplicationsError(res, 409, error.message, 'APPLICATION_ALREADY_EXISTS');
+          return;
+        }
+        sendApplicationsError(res, 400, error.message, 'APPLICATION_CREATE_ERROR');
         return;
       }
       next(error);
@@ -88,26 +116,24 @@ export class ApplicationsController {
   getStudentApplications = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendApplicationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const studentId = await this.applicationsService.getStudentIdFromUserId(
-        req.user.userId
-      );
-
+      const studentId = await this.applicationsService.getStudentIdFromUserId(req.user.userId);
       const filters = req.query as unknown as GetApplicationsDto;
-      const result = await this.applicationsService.getStudentApplications(
-        studentId,
-        filters
-      );
+      const result = await this.applicationsService.getCanonicalStudentApplications(studentId, filters);
 
       res.status(200).json(result);
     } catch (error) {
+      if (error instanceof Error) {
+        sendApplicationsError(res, 400, error.message, 'STUDENT_APPLICATIONS_ERROR');
+        return;
+      }
       next(error);
     }
   };
@@ -115,26 +141,24 @@ export class ApplicationsController {
   getCompanyApplications = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendApplicationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const companyId = await this.applicationsService.getCompanyIdFromUserId(
-        req.user.userId
-      );
-
+      const companyId = await this.applicationsService.getCompanyIdFromUserId(req.user.userId);
       const filters = req.query as unknown as GetApplicationsDto;
-      const result = await this.applicationsService.getCompanyApplications(
-        companyId,
-        filters
-      );
+      const result = await this.applicationsService.getCompanyApplications(companyId, filters);
 
       res.status(200).json(result);
     } catch (error) {
+      if (error instanceof Error) {
+        sendApplicationsError(res, 400, error.message, 'COMPANY_APPLICATIONS_ERROR');
+        return;
+      }
       next(error);
     }
   };
@@ -142,23 +166,25 @@ export class ApplicationsController {
   updateStatus = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendApplicationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const applicationId = parseInt(String(req.params.id), 10);
-      const companyId = await this.applicationsService.getCompanyIdFromUserId(
-        req.user.userId
-      );
+      const applicationId = parsePositiveInt(req.params.id);
+      if (!applicationId) {
+        sendApplicationsError(res, 400, 'Invalid application ID', 'INVALID_ID');
+        return;
+      }
 
+      const companyId = await this.applicationsService.getCompanyIdFromUserId(req.user.userId);
       const application = await this.applicationsService.updateApplicationStatus(
         applicationId,
         companyId,
-        req.body
+        req.body,
       );
 
       res.status(200).json({
@@ -167,7 +193,19 @@ export class ApplicationsController {
       });
     } catch (error) {
       if (error instanceof Error) {
-        res.status(400).json({ error: error.message });
+        if (error.message === 'Application not found') {
+          sendApplicationsError(res, 404, error.message, 'NOT_FOUND');
+          return;
+        }
+        if (error.message.includes('Unauthorized')) {
+          sendApplicationsError(res, 403, error.message, 'FORBIDDEN');
+          return;
+        }
+        if (error.message.includes('Invalid status')) {
+          sendApplicationsError(res, 422, error.message, 'INVALID_STATUS');
+          return;
+        }
+        sendApplicationsError(res, 400, error.message, 'APPLICATION_STATUS_ERROR');
         return;
       }
       next(error);
@@ -177,24 +215,22 @@ export class ApplicationsController {
   addNote = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendApplicationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const applicationId = parseInt(String(req.params.id), 10);
-      const companyId = await this.applicationsService.getCompanyIdFromUserId(
-        req.user.userId
-      );
+      const applicationId = parsePositiveInt(req.params.id);
+      if (!applicationId) {
+        sendApplicationsError(res, 400, 'Invalid application ID', 'INVALID_ID');
+        return;
+      }
 
-      const note = await this.applicationsService.addNote(
-        applicationId,
-        companyId,
-        req.body
-      );
+      const companyId = await this.applicationsService.getCompanyIdFromUserId(req.user.userId);
+      const note = await this.applicationsService.addNote(applicationId, companyId, req.body);
 
       res.status(201).json({
         message: 'Note added successfully',
@@ -202,7 +238,15 @@ export class ApplicationsController {
       });
     } catch (error) {
       if (error instanceof Error) {
-        res.status(400).json({ error: error.message });
+        if (error.message === 'Application not found') {
+          sendApplicationsError(res, 404, error.message, 'NOT_FOUND');
+          return;
+        }
+        if (error.message.includes('Unauthorized')) {
+          sendApplicationsError(res, 403, error.message, 'FORBIDDEN');
+          return;
+        }
+        sendApplicationsError(res, 400, error.message, 'NOTE_CREATE_ERROR');
         return;
       }
       next(error);
@@ -212,26 +256,38 @@ export class ApplicationsController {
   getTimeline = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendApplicationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const applicationId = parseInt(String(req.params.id), 10);
+      const applicationId = parsePositiveInt(req.params.id);
+      if (!applicationId) {
+        sendApplicationsError(res, 400, 'Invalid application ID', 'INVALID_ID');
+        return;
+      }
 
       const timeline = await this.applicationsService.getTimeline(
         applicationId,
         req.user.userId,
-        req.user.role
+        req.user.role,
       );
 
       res.status(200).json({ timeline });
     } catch (error) {
       if (error instanceof Error) {
-        res.status(400).json({ error: error.message });
+        if (error.message === 'Application not found') {
+          sendApplicationsError(res, 404, error.message, 'NOT_FOUND');
+          return;
+        }
+        if (error.message.includes('Unauthorized')) {
+          sendApplicationsError(res, 403, error.message, 'FORBIDDEN');
+          return;
+        }
+        sendApplicationsError(res, 400, error.message, 'TIMELINE_FETCH_ERROR');
         return;
       }
       next(error);
@@ -241,28 +297,35 @@ export class ApplicationsController {
   getNotes = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendApplicationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const applicationId = parseInt(String(req.params.id), 10);
-      const companyId = await this.applicationsService.getCompanyIdFromUserId(
-        req.user.userId
-      );
+      const applicationId = parsePositiveInt(req.params.id);
+      if (!applicationId) {
+        sendApplicationsError(res, 400, 'Invalid application ID', 'INVALID_ID');
+        return;
+      }
 
-      const notes = await this.applicationsService.getNotes(
-        applicationId,
-        companyId
-      );
+      const companyId = await this.applicationsService.getCompanyIdFromUserId(req.user.userId);
+      const notes = await this.applicationsService.getNotes(applicationId, companyId);
 
       res.status(200).json({ notes });
     } catch (error) {
       if (error instanceof Error) {
-        res.status(400).json({ error: error.message });
+        if (error.message === 'Application not found') {
+          sendApplicationsError(res, 404, error.message, 'NOT_FOUND');
+          return;
+        }
+        if (error.message.includes('Unauthorized')) {
+          sendApplicationsError(res, 403, error.message, 'FORBIDDEN');
+          return;
+        }
+        sendApplicationsError(res, 400, error.message, 'NOTES_FETCH_ERROR');
         return;
       }
       next(error);

@@ -94,8 +94,17 @@ export class ApplicationsRepository {
             include: {
               company: {
                 select: {
+                  id: true,
                   companyName: true,
                   logoUrl: true,
+                },
+              },
+              programOffer: {
+                select: {
+                  id: true,
+                  programId: true,
+                  title: true,
+                  program: { select: { id: true, title: true } },
                 },
               },
             },
@@ -268,5 +277,52 @@ export class ApplicationsRepository {
     return prisma.jobApplication.count({
       where: { studentId },
     });
+  }
+
+  // ============================================================
+  // PROGRAM APPLICATIONS (ProgramApplication table)
+  // ============================================================
+
+  async findStudentProgramApplications(
+    studentId: number,
+    pagination?: PaginationOptions,
+  ) {
+    const where = { studentId };
+    const skip = pagination ? (pagination.page - 1) * pagination.limit : 0;
+    const take = pagination?.limit;
+
+    const [applications, total] = await Promise.all([
+      prisma.programApplication.findMany({
+        where,
+        include: {
+          offer: {
+            include: {
+              company: {
+                select: {
+                  id: true,
+                  companyName: true,
+                  logoUrl: true,
+                },
+              },
+              program: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+              jobOffer: {
+                select: { id: true, title: true },
+              },
+            },
+          },
+        },
+        orderBy: { appliedAt: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.programApplication.count({ where }),
+    ]);
+
+    return { applications, total };
   }
 }

@@ -48,7 +48,11 @@ export class SavedOffersService {
     const studentId = await this.getStudentIdFromUserId(userId);
 
     return prisma.savedOffer.findMany({
-      where: { studentId },
+      where: {
+        studentId,
+        // Exclude offers linked to programs
+        offer: { programOffer: { is: null } },
+      },
       include: { offer: true },
       orderBy: { createdAt: 'desc' },
     });

@@ -2,6 +2,20 @@ import { Request, Response } from 'express';
 import { NotificationsService } from './notifications.service';
 import { listNotificationsSchema } from './notifications.dto';
 
+function sendNotificationsError(
+  res: Response,
+  status: number,
+  message: string,
+  code: string,
+): void {
+  res.status(status).json({ error: { message, code } });
+}
+
+function parsePositiveInt(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 export class NotificationsController {
   private notificationsService: NotificationsService;
 
@@ -16,7 +30,7 @@ export class NotificationsController {
   listMyNotifications = async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendNotificationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
@@ -26,7 +40,7 @@ export class NotificationsController {
 
       res.status(200).json(result);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      sendNotificationsError(res, 400, error.message, 'BAD_REQUEST');
     }
   };
 
@@ -37,25 +51,29 @@ export class NotificationsController {
   markAsRead = async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendNotificationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const id = parseInt(req.params.id as string);
+      const id = parsePositiveInt(req.params.id);
+      if (!id) {
+        sendNotificationsError(res, 400, 'Invalid notification ID', 'INVALID_ID');
+        return;
+      }
       const userId = req.user.userId;
       const result = await this.notificationsService.markAsRead(id, userId);
 
       res.status(200).json(result);
     } catch (error: any) {
       if (error.message === 'Notification not found') {
-        res.status(404).json({ error: error.message });
+        sendNotificationsError(res, 404, error.message, 'NOT_FOUND');
         return;
       }
       if (error.message === 'Unauthorized to mark this notification as read') {
-        res.status(403).json({ error: error.message });
+        sendNotificationsError(res, 403, error.message, 'FORBIDDEN');
         return;
       }
-      res.status(400).json({ error: error.message });
+      sendNotificationsError(res, 400, error.message, 'BAD_REQUEST');
     }
   };
 
@@ -66,7 +84,7 @@ export class NotificationsController {
   markAllAsRead = async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendNotificationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
@@ -75,7 +93,7 @@ export class NotificationsController {
 
       res.status(200).json(result);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      sendNotificationsError(res, 400, error.message, 'BAD_REQUEST');
     }
   };
 
@@ -86,25 +104,29 @@ export class NotificationsController {
   deleteNotification = async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: 'Not authenticated' });
+        sendNotificationsError(res, 401, 'Not authenticated', 'UNAUTHORIZED');
         return;
       }
 
-      const id = parseInt(req.params.id as string);
+      const id = parsePositiveInt(req.params.id);
+      if (!id) {
+        sendNotificationsError(res, 400, 'Invalid notification ID', 'INVALID_ID');
+        return;
+      }
       const userId = req.user.userId;
       const result = await this.notificationsService.deleteNotification(id, userId);
 
       res.status(200).json(result);
     } catch (error: any) {
       if (error.message === 'Notification not found') {
-        res.status(404).json({ error: error.message });
+        sendNotificationsError(res, 404, error.message, 'NOT_FOUND');
         return;
       }
       if (error.message === 'Unauthorized to delete this notification') {
-        res.status(403).json({ error: error.message });
+        sendNotificationsError(res, 403, error.message, 'FORBIDDEN');
         return;
       }
-      res.status(400).json({ error: error.message });
+      sendNotificationsError(res, 400, error.message, 'BAD_REQUEST');
     }
   };
 }

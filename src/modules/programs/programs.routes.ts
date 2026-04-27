@@ -1,135 +1,119 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { ProgramsController } from './programs.controller';
 import { authenticate, authorize, validate } from '../../common/middlewares';
 import {
-  createProgramSchema,
   showInterestSchema,
   updateCompanyStatusSchema,
   createProgramOfferSchema,
   updateOfferStatusSchema,
   applyToProgramOfferSchema,
-  getProgramsSchema,
   getProgramApplicationsSchema,
 } from './programs.dto';
 
 const router = Router();
 const programsController = new ProgramsController();
 
-// ================== UNIVERSITY ENDPOINTS ==================
+function setDeprecatedProgramApplyHeaders(res: Response): void {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('X-Canonical-Endpoint', '/api/students/me/programs/:programId/offers/:programOfferId/apply');
+}
 
-// Create program (UNIVERSITY only)
-router.post(
-  '/universities/me/programs',
-  authenticate,
-  authorize('UNIVERSITY'),
-  validate(createProgramSchema, 'all'),
-  programsController.createProgram
-);
+function setDeprecatedProgramCreateHeaders(res: Response): void {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('X-Canonical-Endpoint', '/api/companies/me/programs/:programId/offers');
+}
 
-// Get my programs (UNIVERSITY only)
-router.get(
-  '/universities/me/programs',
-  authenticate,
-  authorize('UNIVERSITY'),
-  validate(getProgramsSchema, 'all'),
-  programsController.getMyPrograms
-);
+// Note: university-specific program CRUD lives in universities.routes.ts
 
-// Update company status in program (UNIVERSITY only)
+// -- Company status in program (UNIVERSITY) --
 router.patch(
-  '/:id/companies/:companyId/status',
+  '/:programId/companies/:companyId/status',
   authenticate,
   authorize('UNIVERSITY'),
   validate(updateCompanyStatusSchema, 'all'),
-  programsController.updateCompanyStatus
+  programsController.updateCompanyStatus,
 );
 
 // Update offer status (UNIVERSITY only)
 router.patch(
-  '/:id/offers/:offerId/status',
+  '/:programId/offers/:programOfferId/status',
   authenticate,
   authorize('UNIVERSITY'),
   validate(updateOfferStatusSchema, 'all'),
-  programsController.updateOfferStatus
+  programsController.updateOfferStatus,
 );
 
-// ================== COMPANY ENDPOINTS ==================
+// -- Company endpoints --
 
-// Show interest in program (COMPANY only)
+// Show interest in program
 router.post(
   '/:id/interest',
   authenticate,
   authorize('COMPANY'),
   validate(showInterestSchema, 'all'),
-  programsController.showInterest
+  programsController.showInterest,
 );
 
-// Create offer in program (COMPANY only)
+// Create offer in program (COMPANY - no ProgramCompany required)
 router.post(
-  '/:id/offers',
+  '/:programId/offers',
   authenticate,
   authorize('COMPANY'),
   validate(createProgramOfferSchema, 'all'),
-  programsController.createOffer
+  (req, res, next) => {
+    setDeprecatedProgramCreateHeaders(res);
+    return programsController.createOffer(req, res, next);
+  },
 );
 
-// Get my program offers (COMPANY only)
+// Get my program offers (COMPANY)
 router.get(
   '/companies/me/offers',
   authenticate,
   authorize('COMPANY'),
-  programsController.getMyProgramOffers
+  programsController.getMyProgramOffers,
 );
 
-// Get applications for an offer (COMPANY only)
+// Get applications for an offer (COMPANY)
 router.get(
   '/offers/:offerId/applications',
   authenticate,
   authorize('COMPANY'),
-  programsController.getOfferApplications
+  programsController.getOfferApplications,
 );
 
-// ================== STUDENT ENDPOINTS ==================
+// -- Student endpoints --
 
-// Apply to program offer (STUDENT only)
+// Apply to program offer
 router.post(
   '/:id/offers/:offerId/apply',
   authenticate,
   authorize('STUDENT'),
   validate(applyToProgramOfferSchema, 'all'),
-  programsController.applyToOffer
+  (req, res, next) => {
+    setDeprecatedProgramApplyHeaders(res);
+    return programsController.applyToOffer(req, res, next);
+  },
 );
 
-// Get my program applications (STUDENT only)
+// Get my program applications (STUDENT)
 router.get(
   '/students/me/applications',
   authenticate,
   authorize('STUDENT'),
   validate(getProgramApplicationsSchema, 'all'),
-  programsController.getMyApplications
+  programsController.getMyApplications,
 );
 
-// ================== PUBLIC/SHARED ENDPOINTS ==================
+// -- Public/shared --
 
-// Get program details (authenticated)
-router.get(
-  '/:id',
-  authenticate,
-  programsController.getProgramById
-);
+// Get program detail (role-aware for authenticated users)
+router.get('/:id', authenticate, programsController.getProgramDetail);
 
-// Get program companies (authenticated)
-router.get(
-  '/:id/companies',
-  authenticate,
-  programsController.getProgramCompanies
-);
+// Get program companies
+router.get('/:id/companies', authenticate, programsController.getProgramCompanies);
 
-// Get program offers (authenticated)
-router.get(
-  '/:id/offers',
-  authenticate,
-  programsController.getProgramOffers
-);
+// Get program offers
+router.get('/:programId/offers', authenticate, programsController.getProgramOffers);
 
 export default router;

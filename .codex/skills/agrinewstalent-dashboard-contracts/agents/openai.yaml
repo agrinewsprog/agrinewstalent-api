@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dashboard Contracts"
+  short_description: "Stabilize dashboard metrics and recent-item payloads"
+  default_prompt: "Use Dashboard Contracts to normalize dashboard summary metrics, recent lists, and anti-duplication rules for this API."

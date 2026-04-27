@@ -141,8 +141,15 @@ export class AuthController {
         res.status(401).json({ error: { message: 'Not authenticated', code: 'UNAUTHENTICATED' } });
         return;
       }
+
+      res.setHeader('Deprecation', 'true');
+      res.setHeader('X-Canonical-Endpoint', '/api/students/profile');
+
       const updated = await this.authService.updateStudentProfile(req.user.userId, req.body);
-      res.status(200).json({ message: 'Profile updated', profile: updated });
+      res.status(200).json({
+        message: 'Profile updated. Use /api/students/profile as the canonical student profile endpoint.',
+        profile: updated,
+      });
     } catch (error) {
       if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { message: error.message, code: error.code } });

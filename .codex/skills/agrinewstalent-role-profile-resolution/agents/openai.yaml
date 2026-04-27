@@ -1,0 +1,4 @@
+interface:
+  display_name: "Role/Profile Resolution"
+  short_description: "Separate auth identity from business profile IDs"
+  default_prompt: "Use Role/Profile Resolution to verify role ownership, me endpoints, and userId to profileId mapping in this API."

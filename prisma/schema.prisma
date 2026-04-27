@@ -35,9 +35,8 @@ enum JobOfferStatus {
 }
 
 enum ApplicationStatus {
-  SUBMITTED
-  VIEWED
-  INTERVIEW_REQUESTED
+  PENDING
+  INTERVIEW
   HIRED
   REJECTED
 }
@@ -58,16 +57,15 @@ enum ProgramCompanyStatus {
 }
 
 enum ProgramOfferStatus {
-  DRAFT
-  PENDING_APPROVAL
+  PENDING
   APPROVED
   REJECTED
 }
 
 enum ProgramApplicationStatus {
-  SUBMITTED
-  REVIEWED
-  ACCEPTED
+  PENDING
+  INTERVIEW
+  HIRED
   REJECTED
 }
 
@@ -77,6 +75,10 @@ enum ProgramApplicationStatus {
 
 enum NotificationType {
   APPLICATION_STATUS_CHANGED
+  APPLICATION_PENDING
+  APPLICATION_INTERVIEW
+  APPLICATION_HIRED
+  APPLICATION_REJECTED
   OFFER_APPROVED
   COMPANY_APPROVED
   PROGRAM_CREATED
@@ -150,6 +152,7 @@ model StudentProfile {
   // Relations - FASE 3
   universityMembership UniversityMembership?
   programApplications  ProgramApplication[]
+  programEnrollments   ProgramEnrollment[]
   
   // Relations - FASE 4
   courseCompletions CourseCompletion[]
@@ -224,6 +227,17 @@ model CompanyProfile {
   // FASE 3
   foundedYear Int?
   companySize String?
+
+  // Extended profile fields
+  linkedinUrl              String?
+  descriptionLong          String?  @db.Text
+  contactPerson            String?
+  contactEmail             String?
+  contactPhone             String?
+  workModes                String?  @db.Text   // JSON array: ["REMOTE","HYBRID","ON_SITE"]
+  vacancyTypes             String?  @db.Text   // JSON array: ["FULL_TIME","PART_TIME","INTERNSHIP","FREELANCE"]
+  workingLanguages         String?  @db.Text   // JSON array of strings
+  participatesInInternships Boolean @default(false)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -248,11 +262,15 @@ model UniversityProfile {
   id             Int      @id @default(autoincrement())
   userId         Int      @unique
   universityName String
+  location       String?  @db.VarChar(255)
   city           String?
   country        String?
   website        String?
   description    String?  @db.Text
   logoUrl        String?
+  careers        String?  @db.Text  // JSON array of strings
+  convenioTypes  String?  @db.Text  // JSON array: ["NATIONAL","INTERNATIONAL"]
+  verified       Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -314,6 +332,7 @@ model JobOffer {
   // Relations
   applications JobApplication[]
   savedOffers  SavedOffer[]
+  programOffer ProgramOffer?
 
   @@index([companyId])
   @@index([status])
@@ -341,7 +360,7 @@ model JobApplication {
   offerId     Int
   coverLetter String?           @db.Text
   resumeUrl   String?
-  status      ApplicationStatus @default(SUBMITTED)
+  status      ApplicationStatus @default(PENDING)
   appliedAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -436,8 +455,9 @@ model Program {
   universityId     Int
   title            String
   description      String?   @db.Text
-  startDate        DateTime
-  endDate          DateTime
+  rules            String?   @db.Text  // Program rules / requirements
+  startDate        DateTime?
+  endDate          DateTime?
   isActive         Boolean   @default(true)
   requiresCourseId Int?      // For future Course model integration
   maxStudents      Int?
@@ -449,6 +469,7 @@ model Program {
   // Relations
   companies       ProgramCompany[]
   offers          ProgramOffer[]
+  enrollments     ProgramEnrollment[]
   
   @@index([universityId])
   @@index([isActive])
@@ -478,6 +499,7 @@ model ProgramOffer {
   id              Int                 @id @default(autoincrement())
   programId       Int
   companyId       Int
+  jobOfferId      Int?                @unique
   title           String
   description     String              @db.Text
   requirements    String?             @db.Text
@@ -486,14 +508,15 @@ model ProgramOffer {
   workMode        String?             // remote, hybrid, onsite
   contractType    String?             // full-time, part-time, internship
   experienceLevel String?             // junior, mid, senior
-  status          ProgramOfferStatus  @default(DRAFT)
+  status          ProgramOfferStatus  @default(PENDING)
   maxApplicants   Int?
   createdAt       DateTime            @default(now())
   approvedAt      DateTime?
   approvedBy      Int?                // userId who approved
   
-  program Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
-  company CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  program  Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  company  CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobOffer JobOffer?      @relation(fields: [jobOfferId], references: [id], onDelete: SetNull)
   
   // Relations
   applications ProgramApplication[]
@@ -509,7 +532,7 @@ model ProgramApplication {
   studentId   Int
   coverLetter String?                  @db.Text
   resumeUrl   String?
-  status      ProgramApplicationStatus @default(SUBMITTED)
+  status      ProgramApplicationStatus @default(PENDING)
   appliedAt   DateTime                 @default(now())
   reviewedAt  DateTime?
   
@@ -521,6 +544,20 @@ model ProgramApplication {
   @@index([studentId])
   @@index([status])
   @@index([appliedAt])
+}
+
+model ProgramEnrollment {
+  id          Int      @id @default(autoincrement())
+  programId   Int
+  studentId   Int
+  enrolledAt  DateTime @default(now())
+  
+  program Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@unique([programId, studentId])
+  @@index([programId])
+  @@index([studentId])
 }
 
 // ============================================================
@@ -598,6 +635,7 @@ model Notification {
   message   String           @db.Text
   type      NotificationType
   relatedId Int?             // ID of related entity (application, offer, etc)
+  metadata  String?          @db.Text  // JSON with applicationId, offerId, programId, etc.
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
   

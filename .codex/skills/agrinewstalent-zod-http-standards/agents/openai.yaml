@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zod/HTTP Standards"
+  short_description: "Normalize DTOs, validation, errors, and pagination"
+  default_prompt: "Use Zod/HTTP Standards to keep validation, HTTP codes, and error shapes consistent across this API."

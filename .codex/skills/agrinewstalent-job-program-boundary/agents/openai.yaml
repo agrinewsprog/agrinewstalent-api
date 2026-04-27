@@ -1,0 +1,4 @@
+interface:
+  display_name: "Job/Program Boundary"
+  short_description: "Keep job and program flows separate and explicit"
+  default_prompt: "Use Job/Program Boundary to prevent contract drift, fallback IDs, and double counting between job and program flows."

@@ -14,6 +14,7 @@ export class NotificationsRepository {
         message: data.message,
         type: data.type as any,
         relatedId: data.relatedId,
+        metadata: data.metadata,
       },
     });
   }
@@ -44,7 +45,10 @@ export class NotificationsRepository {
         where,
         skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
       }),
       prisma.notification.count({ where }),
     ]);

@@ -43,7 +43,8 @@ export class AuthService {
     refreshToken: string;
   }> {
     // Check if user already exists
-    const existingUser = await this.authRepository.findUserByEmail(dto.email);
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const existingUser = await this.authRepository.findUserByEmail(normalizedEmail);
     if (existingUser) {
       throw new AppError('User already exists with this email', 409, 'EMAIL_IN_USE');
     }
@@ -53,7 +54,7 @@ export class AuthService {
 
     // Create user with profile based on role
     const userData: any = {
-      email: dto.email,
+      email: normalizedEmail,
       password: hashedPassword,
       role: dto.role,
     };
@@ -107,6 +108,15 @@ export class AuthService {
       // foundedYear is already coerced to number by Zod transform
       if (dto.foundedYear != null) companyData.foundedYear = dto.foundedYear;
       if (dto.companySize) companyData.companySize = dto.companySize;
+      if (dto.linkedinUrl) companyData.linkedinUrl = dto.linkedinUrl;
+      if (dto.descriptionLong) companyData.descriptionLong = dto.descriptionLong;
+      if (dto.contactPerson) companyData.contactPerson = dto.contactPerson;
+      if (dto.contactEmail) companyData.contactEmail = dto.contactEmail;
+      if (dto.contactPhone) companyData.contactPhone = dto.contactPhone;
+      if (dto.workModes) companyData.workModes = JSON.stringify(dto.workModes);
+      if (dto.vacancyTypes) companyData.vacancyTypes = JSON.stringify(dto.vacancyTypes);
+      if (dto.workingLanguages && dto.workingLanguages.length) companyData.workingLanguages = JSON.stringify(dto.workingLanguages);
+      if (dto.participatesInInternships != null) companyData.participatesInInternships = dto.participatesInInternships;
 
       userData.companyProfile = { create: companyData };
 
@@ -124,9 +134,9 @@ export class AuthService {
       if (dto.website)     universityData.website     = dto.website;
       if (dto.description) universityData.description = dto.description;
       if (dto.logoUrl)     universityData.logoUrl     = dto.logoUrl;
-      // Only persist arrays when the Prisma model supports JSON columns
-      if (convenioTypes.length) universityData.convenioTypes = convenioTypes;
-      if (careers.length)       universityData.careers       = careers;
+      // JSON.stringify arrays — the Prisma columns are String @db.Text, NOT Json
+      if (convenioTypes.length) universityData.convenioTypes = JSON.stringify(convenioTypes);
+      if (careers.length)       universityData.careers       = JSON.stringify(careers);
 
       userData.universityProfile = { create: universityData };
     }
@@ -218,14 +228,19 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
+    // Normalize email (trim + lowercase) — defensive even though Zod already does it
+    const normalizedEmail = dto.email.trim().toLowerCase();
+
     // Find user
-    const user = await this.authRepository.findUserByEmail(dto.email);
+    const user = await this.authRepository.findUserByEmail(normalizedEmail);
+
     if (!user) {
       throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
     }
 
     // Verify password
     const isPasswordValid = await comparePassword(dto.password, user.password);
+
     if (!isPasswordValid) {
       throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
     }
@@ -270,7 +285,7 @@ export class AuthService {
     try {
       payload = verifyRefreshToken(refreshToken);
     } catch (error) {
-      throw new Error('Invalid refresh token');
+      throw new AppError('Invalid refresh token', 401, 'INVALID_REFRESH_TOKEN');
     }
 
     // Find all refresh tokens for user and verify against hashed versions
@@ -286,13 +301,13 @@ export class AuthService {
     }
 
     if (!validToken) {
-      throw new Error('Refresh token not found');
+      throw new AppError('Refresh token not found', 401, 'REFRESH_TOKEN_NOT_FOUND');
     }
 
     // Check if token is expired
     if (validToken.expiresAt < new Date()) {
       await this.authRepository.deleteRefreshTokenById(validToken.id);
-      throw new Error('Refresh token expired');
+      throw new AppError('Refresh token expired', 401, 'REFRESH_TOKEN_EXPIRED');
     }
 
     // Strip JWT-reserved fields (exp, iat) before re-signing.
@@ -415,6 +430,41 @@ export class AuthService {
         careerField: studentProfile?.careerField ?? undefined,
         avatarUrl: studentProfile?.avatarUrl ?? undefined,
       } as any;
+    }
+
+    if (user.role === Role.COMPANY) {
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId },
+      });
+      if (companyProfile) {
+        const parseJson = (val: string | null) => {
+          if (!val) return [];
+          try { return JSON.parse(val); } catch { return []; }
+        };
+        return {
+          ...userWithoutPassword,
+          companyId: companyProfile.id,
+          companyName: companyProfile.companyName,
+          industry: companyProfile.industry,
+          size: companyProfile.size,
+          companySize: companyProfile.companySize,
+          website: companyProfile.website,
+          description: companyProfile.description,
+          logoUrl: companyProfile.logoUrl,
+          city: companyProfile.city,
+          country: companyProfile.country,
+          foundedYear: companyProfile.foundedYear,
+          linkedinUrl: companyProfile.linkedinUrl,
+          descriptionLong: companyProfile.descriptionLong,
+          contactPerson: companyProfile.contactPerson,
+          contactEmail: companyProfile.contactEmail,
+          contactPhone: companyProfile.contactPhone,
+          workModes: parseJson(companyProfile.workModes),
+          vacancyTypes: parseJson(companyProfile.vacancyTypes),
+          workingLanguages: parseJson(companyProfile.workingLanguages),
+          participatesInInternships: companyProfile.participatesInInternships,
+        } as any;
+      }
     }
 
     return userWithoutPassword;

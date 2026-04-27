@@ -58,7 +58,7 @@ const optUrl = z
 // -------------------------------------------------------
 
 const baseRegisterSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().trim().toLowerCase().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   role: z.nativeEnum(Role, { message: 'Invalid role. Must be STUDENT, COMPANY, UNIVERSITY, or SUPER_ADMIN' }),
 });
@@ -96,6 +96,15 @@ const companyFields = z.object({
   country:     optStr,
   foundedYear: coerceYear,
   companySize: optStr,
+  linkedinUrl: optUrl,
+  descriptionLong: optStr,
+  contactPerson:   optStr,
+  contactEmail:    z.union([z.string().email('Invalid contact email'), z.literal(''), z.null()]).optional().transform((v) => (v === '' || v == null ? undefined : v)),
+  contactPhone:    optStr,
+  workModes:       z.array(z.enum(['REMOTE', 'HYBRID', 'ON_SITE'])).nullish().transform((v) => v ?? undefined),
+  vacancyTypes:    z.array(z.enum(['FULL_TIME', 'PART_TIME', 'INTERNSHIP', 'FREELANCE'])).nullish().transform((v) => v ?? undefined),
+  workingLanguages: safeStringArray,
+  participatesInInternships: z.boolean().nullish().transform((v) => v ?? undefined),
 });
 
 const universityFields = z.object({
@@ -143,7 +152,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   body: z.object({
-    email: z.string().email('Invalid email address'),
+    email: z.string().trim().toLowerCase().email('Invalid email address'),
     password: z.string().min(1, 'Password is required'),
   }),
 });

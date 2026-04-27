@@ -21,7 +21,10 @@ export class OffersRepository {
     filters?: OffersFilters,
     pagination?: PaginationOptions
   ): Promise<{ offers: JobOffer[]; total: number }> {
-    const where: Prisma.JobOfferWhereInput = {};
+    const where: Prisma.JobOfferWhereInput = {
+      // Exclude offers linked to programs — those are only visible inside their program
+      programOffer: { is: null },
+    };
 
     if (filters?.status) {
       where.status = filters.status;
@@ -89,7 +92,7 @@ export class OffersRepository {
     return { offers, total };
   }
 
-  async findById(id: number): Promise<JobOffer | null> {
+  async findById(id: number): Promise<any> {
     return prisma.jobOffer.findUnique({
       where: { id },
       include: {
@@ -105,6 +108,12 @@ export class OffersRepository {
             website: true,
           },
         },
+        programOffer: {
+          select: {
+            id: true,
+            programId: true,
+          },
+        },
         _count: {
           select: {
             applications: true,
@@ -115,8 +124,12 @@ export class OffersRepository {
   }
 
   async findByCompanyId(companyId: number): Promise<JobOffer[]> {
-    return prisma.jobOffer.findMany({
-      where: { companyId },
+    const offers = await prisma.jobOffer.findMany({
+      where: {
+        companyId,
+        // Exclude offers linked to programs
+        programOffer: { is: null },
+      },
       include: {
         _count: {
           select: {
@@ -128,6 +141,18 @@ export class OffersRepository {
         createdAt: 'desc',
       },
     });
+
+    if (process.env.NODE_ENV !== 'production') {
+      const excludedCount = await prisma.jobOffer.count({
+        where: { companyId, programOffer: { isNot: null } },
+      });
+      console.log(
+        '[DEV:findByCompanyId] companyId=%d normalOffers=%d programOffersExcluded=%d',
+        companyId, offers.length, excludedCount,
+      );
+    }
+
+    return offers;
   }
 
   async create(data: Prisma.JobOfferCreateInput): Promise<JobOffer> {
@@ -197,7 +222,7 @@ export class OffersRepository {
     });
   }
 
-  async getSavedOffers(studentId: number): Promise<JobOffer[]> {
+  async getSavedOffers(studentId: number): Promise<any[]> {
     const savedOffers = await prisma.savedOffer.findMany({
       where: { studentId },
       include: {
@@ -209,6 +234,14 @@ export class OffersRepository {
                 logoUrl: true,
                 city: true,
                 country: true,
+              },
+            },
+            applications: {
+              where: { studentId },
+              select: {
+                id: true,
+                status: true,
+                appliedAt: true,
               },
             },
           },

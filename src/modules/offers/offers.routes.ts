@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { OffersController } from './offers.controller';
 import { ApplicationsController } from '../applications/applications.controller';
 import { authenticate, authorize, validate } from '../../common/middlewares';
@@ -9,6 +9,11 @@ import { Role } from '@prisma/client';
 const router = Router();
 const offersController = new OffersController();
 const applicationsController = new ApplicationsController();
+
+function setDeprecatedApplyHeaders(res: Response): void {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('X-Canonical-Endpoint', '/api/applications/offers/:offerId/apply');
+}
 
 /**
  * @route   GET /offers
@@ -134,6 +139,7 @@ router.post(
   authorize(Role.STUDENT),
   validate(applyToOfferSchema, 'all'),
   async (req, res, next) => {
+    setDeprecatedApplyHeaders(res);
     // Remap :id to :offerId for ApplicationsController
     req.params.offerId = req.params.id;
     return applicationsController.applyToOffer(req, res, next);

@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgriNews API Contracts"
+  short_description: "Stabilize canonical endpoints, IDs, and response shapes"
+  default_prompt: "Use AgriNews API Contracts to choose the canonical endpoint, canonical IDs, and canonical response shape before changing backend behavior."

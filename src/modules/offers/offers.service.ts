@@ -29,11 +29,63 @@ export class OffersService {
   }
 
   async getOfferById(id: number): Promise<JobOffer | null> {
-    return this.offersRepository.findById(id);
+    const offer = await this.offersRepository.findById(id);
+    if (offer?.programOffer) {
+      return null;
+    }
+    return offer;
   }
 
-  async getCompanyOffers(companyId: number): Promise<JobOffer[]> {
-    return this.offersRepository.findByCompanyId(companyId);
+  private ensureNotProgramLinked(offer: any, action: string): void {
+    if (offer?.programOffer) {
+      throw new Error(
+        `Program-linked offers cannot be ${action} through /api/offers. Use the program offer flow with programId=${offer.programOffer.programId} and programOfferId=${offer.programOffer.id}.`,
+      );
+    }
+  }
+
+  async getCompanyOffers(companyId: number): Promise<any> {
+    const offers = await this.offersRepository.findByCompanyId(companyId);
+
+    const items = offers.map((offer: any) => ({
+      jobOfferId: offer.id,
+      title: offer.title,
+      description: offer.description,
+      requirements: offer.requirements ?? null,
+      location: offer.location ?? null,
+      workMode: offer.workMode ?? null,
+      salary: offer.salary ?? null,
+      contractType: offer.contractType ?? null,
+      experienceLevel: offer.experienceLevel ?? null,
+      status: offer.status,
+      publishedAt: offer.publishedAt ?? null,
+      closedAt: offer.closedAt ?? null,
+      expiresAt: offer.expiresAt ?? null,
+      createdAt: offer.createdAt,
+      updatedAt: offer.updatedAt,
+      applicationsCount: offer._count?.applications ?? 0,
+      isProgramLinked: false,
+      hasApplications: (offer._count?.applications ?? 0) > 0,
+      canEdit: true,
+      canPublish: offer.status === JobOfferStatus.DRAFT,
+      canClose: offer.status === JobOfferStatus.PUBLISHED,
+    })) as any[];
+
+    return {
+      offers: items,
+      meta: {
+        totalOffers: items.length,
+        hasOffers: items.length > 0,
+        hasPublishedOffers: items.some((offer) => offer.status === JobOfferStatus.PUBLISHED),
+        hasApplications: items.some((offer) => offer.hasApplications),
+        emptyState: items.length === 0
+          ? {
+              kind: 'NO_OFFERS',
+              message: 'This company has not created normal offers yet.',
+            }
+          : null,
+      },
+    };
   }
 
   async createOffer(companyId: number, dto: CreateOfferDto): Promise<JobOffer> {
@@ -72,6 +124,7 @@ export class OffersService {
     if (offer.companyId !== companyId) {
       throw new Error('Unauthorized to update this offer');
     }
+    this.ensureNotProgramLinked(offer, 'updated');
 
     const data: any = { ...dto };
 
@@ -91,6 +144,7 @@ export class OffersService {
     if (offer.companyId !== companyId) {
       throw new Error('Unauthorized to delete this offer');
     }
+    this.ensureNotProgramLinked(offer, 'deleted');
 
     await this.offersRepository.delete(id);
   }
@@ -104,6 +158,7 @@ export class OffersService {
     if (offer.companyId !== companyId) {
       throw new Error('Unauthorized to publish this offer');
     }
+    this.ensureNotProgramLinked(offer, 'published');
 
     if (offer.status !== JobOfferStatus.DRAFT) {
       throw new Error('Only draft offers can be published');
@@ -124,6 +179,7 @@ export class OffersService {
     if (offer.companyId !== companyId) {
       throw new Error('Unauthorized to close this offer');
     }
+    this.ensureNotProgramLinked(offer, 'closed');
 
     if (offer.status !== JobOfferStatus.PUBLISHED) {
       throw new Error('Only published offers can be closed');
@@ -154,6 +210,7 @@ export class OffersService {
     if (offer.companyId !== companyId) {
       throw new Error('Unauthorized to change status of this offer');
     }
+    this.ensureNotProgramLinked(offer, 'managed');
 
     const data: Record<string, unknown> = { status: targetStatus };
 
@@ -173,6 +230,7 @@ export class OffersService {
     if (!offer) {
       throw new Error('Offer not found');
     }
+    this.ensureNotProgramLinked(offer, 'saved');
     if (offer.status !== JobOfferStatus.PUBLISHED) {
       throw new Error('Only published offers can be saved');
     }
@@ -196,8 +254,26 @@ export class OffersService {
     await this.offersRepository.unsaveOffer(studentId, offerId);
   }
 
-  async getSavedOffers(studentId: number): Promise<JobOffer[]> {
-    return this.offersRepository.getSavedOffers(studentId);
+  async getSavedOffers(studentId: number): Promise<any[]> {
+    const offers = await this.offersRepository.getSavedOffers(studentId);
+
+    return offers.map((offer: any) => {
+      const application = offer.applications?.[0] ?? null;
+
+      return {
+        ...offer,
+        jobOfferId: offer.id,
+        isSaved: true,
+        alreadyApplied: Boolean(application),
+        application: application
+          ? {
+              applicationId: application.id,
+              status: application.status,
+              appliedAt: application.appliedAt,
+            }
+          : null,
+      };
+    });
   }
 
   async getCompanyIdFromUserId(userId: number): Promise<number> {

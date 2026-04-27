@@ -40,3 +40,27 @@ export const uploadResume = multer({
     }
   },
 });
+
+export const uploadUniversityLogo = multer({
+  storage: makeStorage(path.join('universities', 'logos'), 'logo'),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|svg\+xml)$/.test(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten imágenes (JPEG, PNG, WEBP, SVG)'));
+    }
+  },
+});
+
+export const uploadCompanyLogo = multer({
+  storage: makeStorage(path.join('companies', 'logos'), 'logo'),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|svg\+xml)$/.test(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten imágenes (JPEG, PNG, WEBP, SVG)'));
+    }
+  },
+});

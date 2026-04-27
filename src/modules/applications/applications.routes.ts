@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { ApplicationsController } from './applications.controller';
 import { authenticate, authorize, validate } from '../../common/middlewares';
 import {
   applyToOfferSchema,
+  applyToOfferFromBodySchema,
   updateApplicationStatusSchema,
   createNoteSchema,
   getApplicationsSchema,
@@ -12,12 +13,21 @@ import { Role } from '@prisma/client';
 const router = Router();
 const applicationsController = new ApplicationsController();
 
+function setDeprecatedApplyHeaders(res: Response, canonicalEndpoint: string): void {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('X-Canonical-Endpoint', canonicalEndpoint);
+}
+
 // Aplicar a una oferta desde el body: POST /api/applications { offerId, ... }
 router.post(
   '/',
   authenticate,
   authorize(Role.STUDENT),
-  applicationsController.applyFromBody
+  validate(applyToOfferFromBodySchema, 'all'),
+  (req, res, next) => {
+    setDeprecatedApplyHeaders(res, '/api/applications/offers/:offerId/apply');
+    return applicationsController.applyFromBody(req, res, next);
+  }
 );
 
 // Aplicar a una oferta (solo estudiantes)
@@ -26,7 +36,10 @@ router.post(
   authenticate,
   authorize(Role.STUDENT),
   validate(applyToOfferSchema, 'all'),
-  applicationsController.applyToOffer
+  (req, res, next) => {
+    res.setHeader('X-Canonical-Endpoint', '/api/applications/offers/:offerId/apply');
+    return applicationsController.applyToOffer(req, res, next);
+  }
 );
 
 // Ver mis postulaciones (solo estudiantes)
@@ -53,7 +66,10 @@ router.patch(
   authenticate,
   authorize(Role.COMPANY),
   validate(updateApplicationStatusSchema, 'all'),
-  applicationsController.updateStatus
+  (req, res, next) => {
+    setDeprecatedApplyHeaders(res, '/api/companies/me/applications/:applicationId/status');
+    return applicationsController.updateStatus(req, res, next);
+  }
 );
 
 // Agregar nota a postulación (solo empresas)

@@ -2,7 +2,6 @@ import express, { Application } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { env } from './config/env';
 import { errorHandler } from './common/middlewares';
@@ -66,14 +65,14 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Rate limiting (aplica a /api)
-const limiter = rateLimit({
+/*const limiter = rateLimit({
   windowMs: env.rateLimit.windowMs,
   max: env.rateLimit.maxRequests,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api', limiter);
+app.use('/api', limiter);*/
 
 // ============================================================
 // BODY PARSING MIDDLEWARE
